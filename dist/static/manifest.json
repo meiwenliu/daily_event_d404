@@ -1,0 +1,13 @@
+{
+  "name": "D404 实验室值日看板",
+  "short_name": "D404值日",
+  "description": "D404 实验室每日值日看板，可一键复制提醒文字。",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0f172a",
+  "theme_color": "#0d9488",
+  "lang": "zh-CN",
+  "icons": []
+}

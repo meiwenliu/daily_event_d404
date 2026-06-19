@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}节假日与放假 · D404 值日看板{% endblock %}
+{% block header %}节假日与放假管理{% endblock %}
+{% block sub %}添加 / 编辑 / 删除法定节假日与课题组放假。仅影响页面提示，不改变轮换顺序。{% endblock %}
+{% block content %}
+
+<section class="panel">
+  <div class="panel-head"><h2>新增停提醒日期</h2></div>
+  <div class="panel-body form-grid">
+    <label class="field"><span>名称</span><input id="newName" type="text" placeholder="如：劳动节 / 课题组暑假"></label>
+    <label class="field"><span>类型</span>
+      <select id="newKind">
+        <option value="holiday">法定节假日</option>
+        <option value="custom">课题组放假</option>
+      </select>
+    </label>
+    <label class="field"><span>开始日期</span><input id="newStart" type="date"></label>
+    <label class="field"><span>结束日期</span><input id="newEnd" type="date"></label>
+    <div class="field-wide btn-row">
+      <button class="btn-primary-admin" id="btnAddSkip">添加</button>
+      <span class="hint" id="editHint" style="margin:0" hidden>正在编辑模式，保存即覆盖</span>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>当前停提醒列表</h2></div>
+  <div class="panel-body" id="skipList">加载中…</div>
+</section>
+
+{% endblock %}

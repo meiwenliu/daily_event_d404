@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#0d9488">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="D404值日">
+  <title>D404 实验室值日看板</title>
+  <link rel="manifest" href="static/manifest.json">
+  <link rel="stylesheet" href="static/style.css">
+</head>
+<body class="page-public">
+  <!-- 顶部提醒横幅（倒计时/到点提示） -->
+  <div id="banner" class="banner" hidden></div>
+
+  <header class="pheader">
+    <div class="pheader-top">
+      <h1 class="pheader-title" id="labName">D404 实验室值日看板</h1>
+      <button id="btnNotify" class="chip" hidden>开启浏览器提醒</button>
+    </div>
+    <div class="pheader-date">
+      <span id="dateStr">—</span>
+      <span class="dot">·</span>
+      <span id="weekdayStr">—</span>
+      <span class="dot">·</span>
+      <span id="clockStr" class="clock">--:--:--</span>
+    </div>
+  </header>
+
+  <main id="view" class="pview">
+    <div class="loading">正在加载值日信息…</div>
+  </main>
+
+  <footer class="pfooter">
+    <div>本页面由 D404 实验室值日看板生成 · 不自动发微信群，复制后请手动转发</div>
+  </footer>
+
+  <div id="toast" class="toast-area"></div>
+
+  <script src="static/public.js"></script>
+</body>
+</html>

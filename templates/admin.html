@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}基础设置 · D404 值日看板{% endblock %}
+{% block header %}基础设置{% endblock %}
+{% block sub %}配置实验室信息、轮换基准、停提醒开关，并生成可发布的静态网页。{% endblock %}
+{% block content %}
+
+<section class="panel">
+  <div class="panel-head"><h2>基础信息</h2></div>
+  <div class="panel-body form-grid">
+    <label class="field"><span>实验室名称</span><input id="labName" type="text"></label>
+    <label class="field"><span>微信群名称（用于复制文案）</span><input id="chatName" type="text"></label>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>停提醒开关</h2></div>
+  <div class="panel-body">
+    <label class="sw-row"><input type="checkbox" class="cb" id="skipHolidays"><span class="sw"></span><span>法定节假日不安排值日（仅影响页面提示，不改变轮换）</span></label>
+    <label class="sw-row"><input type="checkbox" class="cb" id="skipCustom"><span class="sw"></span><span>课题组自定义放假时间段不安排值日</span></label>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>轮换基准</h2><span class="hint">基准周周一 + 循环顺序决定每周组别</span></div>
+  <div class="panel-body form-grid">
+    <label class="field"><span>基准周周一日期</span><input id="baseMonday" type="date"></label>
+    <label class="field"><span>基准组（信息标注）</span><input id="baseGroup" type="number" min="1"></label>
+    <label class="field field-wide"><span>组循环顺序（英文逗号分隔，如 2,3,1）</span><input id="orderInput" type="text"></label>
+    <div class="field-wide btn-row">
+      <button class="btn-primary-admin" id="btnSaveBasic">保存基础设置</button>
+    </div>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-head"><h2>预览</h2></div>
+  <div class="panel-body">
+    <div class="btn-row">
+      <a class="btn-ghost-admin" href="{{ url_for('public_page') }}" target="_blank">预览今天页面</a>
+      <label class="field" style="flex-direction:row;align-items:center;gap:6px;flex:1;min-width:220px">
+        <span style="margin:0">选择日期</span><input id="previewDate" type="date">
+      </label>
+      <button class="btn-ghost-admin" id="btnPreviewDate">预览该日页面</button>
+    </div>
+    <div class="btn-row" style="margin-top:10px">
+      <button class="btn-ghost-admin" data-prev="today">预览今日提醒文字</button>
+      <button class="btn-ghost-admin" data-prev="tomorrow">预览明日提醒文字</button>
+      <button class="btn-ghost-admin" data-prev="week">预览本周安排文字</button>
+    </div>
+    <pre class="msg-preview" id="previewText" style="margin-top:12px">（点击上方按钮预览文案）</pre>
+  </div>
+</section>
+
+<section class="export-box">
+  <h3>📦 生成 / 更新发布文件</h3>
+  <div class="hint" style="margin:0">生成 dist 文件夹，部署到 GitHub Pages / Cloudflare Pages / 学校服务器即可公网访问。</div>
+  <div class="btn-row" style="margin-top:12px">
+    <button class="btn-primary-admin" id="btnExport">生成 / 更新发布文件</button>
+    <a class="btn-ghost-admin" id="distLink" href="/dist/" target="_blank" hidden>打开 dist 预览</a>
+  </div>
+  <div class="export-result" id="exportResult" hidden></div>
+</section>
+
+{% endblock %}

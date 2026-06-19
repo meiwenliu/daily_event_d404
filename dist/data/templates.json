@@ -1,0 +1,4 @@
+{
+  "tpl_weekday": "【D404实验室值日提醒】\n\n日期：{date}（{weekday}）\n今日值日：{duty_person}\n所属组别：{group_name}\n本周负责人：{leader}\n\n请今日值日同学完成 D404 实验室值日与安全检查。\n检查内容包括：门窗、水电、仪器设备、桌面地面、垃圾清理等。\n完成后请拍照发至群内留存。",
+  "tpl_saturday": "【D404实验室周六大扫除提醒】\n\n日期：{date}（{weekday}）\n本周负责组：{group_name}\n负责人：{leader}\n\n请负责人组织本组完成 D404 实验室大扫除。\n完成后请拍照发至群内留存。"
+}

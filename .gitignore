@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 虚拟环境
+.venv/
+venv/
+
+# 工具/会话缓存
+.omc/
+.claude/
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# 注意：data/ 目录下的 JSON 配置建议保留并纳入版本管理，
+# 以便值日人员/节假日等配置可随仓库同步；如不希望提交运行日志，
+# 可取消下一行注释：
+# data/send_log.jsonl

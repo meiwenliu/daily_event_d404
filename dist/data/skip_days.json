@@ -1,0 +1,46 @@
+{
+  "skip_days": [
+    {
+      "id": "h-newyear",
+      "name": "元旦",
+      "kind": "holiday",
+      "start": "2026-01-01",
+      "end": "2026-01-01"
+    },
+    {
+      "id": "h-spring",
+      "name": "春节",
+      "kind": "holiday",
+      "start": "2026-02-15",
+      "end": "2026-02-21"
+    },
+    {
+      "id": "h-labor",
+      "name": "劳动节",
+      "kind": "holiday",
+      "start": "2026-05-01",
+      "end": "2026-05-05"
+    },
+    {
+      "id": "h-dragon",
+      "name": "端午节",
+      "kind": "holiday",
+      "start": "2026-06-19",
+      "end": "2026-06-21"
+    },
+    {
+      "id": "h-national",
+      "name": "国庆节",
+      "kind": "holiday",
+      "start": "2026-10-01",
+      "end": "2026-10-07"
+    },
+    {
+      "id": "c-summer",
+      "name": "课题组暑假放假",
+      "kind": "custom",
+      "start": "2026-07-20",
+      "end": "2026-08-30"
+    }
+  ]
+}

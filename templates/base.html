@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}管理后台 · D404 值日看板{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="page-admin" data-page="{{ active }}">
+  <div class="admin-topbar">
+    <div class="admin-topbar-inner">
+      <div class="admin-brand">
+        <div class="mk">D404</div>
+        <span>值日看板 · 管理后台</span>
+      </div>
+      <nav class="admin-nav">
+        <a href="{{ url_for('admin_home') }}" class="{{ 'active' if active == 'home' }}">基础设置</a>
+        <a href="{{ url_for('admin_duty') }}" class="{{ 'active' if active == 'duty' }}">值日人员</a>
+        <a href="{{ url_for('admin_reminders') }}" class="{{ 'active' if active == 'reminders' }}">提醒时间</a>
+        <a href="{{ url_for('admin_holidays') }}" class="{{ 'active' if active == 'holidays' }}">节假日</a>
+        <a href="{{ url_for('admin_templates') }}" class="{{ 'active' if active == 'templates' }}">消息模板</a>
+      </nav>
+      <a class="admin-viewlink" href="{{ url_for('public_page') }}" target="_blank">↗ 查看公共看板</a>
+    </div>
+  </div>
+
+  <div class="admin-wrap">
+    <h1 class="admin-h1">{% block header %}{% endblock %}</h1>
+    <div class="admin-sub">{% block sub %}{% endblock %}</div>
+    {% block content %}{% endblock %}
+  </div>
+
+  <div id="toast" class="toast-area"></div>
+  <script src="{{ url_for('static', filename='admin.js') }}"></script>
+</body>
+</html>
