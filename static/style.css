@@ -292,3 +292,80 @@ input[type="checkbox"].cb:checked + .sw::after { transform: translateX(18px); }
 table.atable { width: 100%; border-collapse: collapse; font-size: 13px; }
 table.atable th, table.atable td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--line); }
 table.atable th { color: var(--muted); font-size: 12px; background: var(--surface-2); }
+
+/* ============================ v3 新增：登录页 / 标签页 / 徽章 ============================ */
+.page-login {
+  min-height: 100vh; display: grid; place-items: center; padding: 20px;
+  background:
+    radial-gradient(800px 320px at 110% -10%, rgba(13,148,136,.20), transparent 60%),
+    radial-gradient(700px 300px at -10% 110%, rgba(139,92,246,.16), transparent 55%),
+    linear-gradient(160deg, var(--bg1), var(--bg2));
+}
+.login-card {
+  width: 100%; max-width: 360px; background: var(--surface);
+  border: 1px solid var(--line); border-radius: 22px; box-shadow: var(--shadow-lg);
+  padding: 30px 26px; text-align: center; animation: rise .4s ease both;
+}
+.login-mark {
+  width: 54px; height: 54px; margin: 0 auto 14px; border-radius: 15px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-d));
+  color: #fff; font-weight: 800; font-size: 16px; display: grid; place-items: center;
+  box-shadow: 0 10px 22px -8px rgba(13,148,136,.7);
+}
+.login-title { margin: 0 0 4px; font-size: 20px; }
+.login-sub { margin: 0 0 18px; color: var(--muted); font-size: 13px; }
+.login-form { display: flex; flex-direction: column; gap: 12px; }
+.login-input {
+  font-size: 16px; padding: 12px 14px; border: 1.5px solid var(--line);
+  border-radius: var(--radius-sm); text-align: center; letter-spacing: 2px;
+}
+.login-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(13,148,136,.14); }
+.login-btn {
+  border: none; background: linear-gradient(135deg, var(--primary), var(--primary-d));
+  color: #fff; font-weight: 700; font-size: 15px; padding: 12px; border-radius: var(--radius-sm);
+  cursor: pointer; box-shadow: 0 10px 20px -10px rgba(13,148,136,.8);
+}
+.login-btn:active { transform: scale(.98); }
+.login-err { color: var(--rose); font-size: 13px; background: var(--rose-soft); padding: 8px 10px; border-radius: 8px; }
+.login-back { display: inline-block; margin-top: 16px; color: var(--muted); font-size: 13px; text-decoration: none; }
+
+/* 管理后台标签页 */
+.atab { animation: rise .3s ease both; }
+.admin-top-actions { display: flex; gap: 12px; align-items: center; }
+.chip-ghost { background: rgba(255,255,255,.08); border-color: rgba(255,255,255,.18); color: #cbd5e1; text-decoration: none; }
+.page-public .chip-ghost { background: var(--surface); border: 1.5px solid var(--line); color: var(--ink-soft); }
+
+/* 徽章变体 */
+.badge-rose { background: var(--rose-soft); color: var(--rose); border: 1px solid #fecdd3; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.badge-green { background: #d1fae5; color: #047857; border: 1px solid #a7f3d0; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.badge-gray { background: var(--slate-soft); color: var(--slate); border: 1px solid var(--line); font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 999px; }
+.today-status { font-size: 14px; padding: 10px 0; }
+.hero-tag { font-size: 11px; background: rgba(255,255,255,.25); padding: 1px 7px; border-radius: 6px; margin-left: 6px; }
+@media (max-width: 600px) { .admin-top-actions { display: none; } }
+
+/* 公网部署相关 */
+.warn-banner {
+  background: linear-gradient(90deg, #fff1f2, #ffe4e6);
+  border: 1.5px solid #fecdd3;
+  border-left: 5px solid var(--rose);
+  color: #9f1239;
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  animation: rise .3s ease both;
+}
+.deploy-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 14px; flex-wrap: wrap;
+}
+.deploy-row:last-child { border-bottom: none; }
+.deploy-row span { color: var(--ink-soft); }
+.deploy-row b { font-family: var(--font-mono); font-size: 13.5px; word-break: break-all; }
+.share-card .share-url {
+  font-family: var(--font-mono); font-size: 13.5px;
+  background: var(--primary-soft); color: var(--primary-d);
+  border-radius: var(--radius-sm); padding: 10px 12px; margin-bottom: 10px;
+  word-break: break-all;
+}

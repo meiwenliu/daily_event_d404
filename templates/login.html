@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>管理员登录 · D404 值日看板</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="page-login">
+  <div class="login-card">
+    <div class="login-mark">D404</div>
+    <h1 class="login-title">管理员登录</h1>
+    <p class="login-sub">输入管理密码进入后台修改值日表</p>
+    <form id="loginForm" class="login-form">
+      <input type="password" id="pwd" class="login-input" placeholder="管理密码" autocomplete="current-password" autofocus>
+      <button type="submit" class="login-btn">登录</button>
+      <div class="login-err" id="err" hidden></div>
+    </form>
+    <a class="login-back" href="/">← 返回看板</a>
+  </div>
+  <div id="toast" class="toast-area"></div>
+  <script src="{{ url_for('static', filename='admin.js') }}"></script>
+  <script>window.__loginPage = true;</script>
+</body>
+</html>

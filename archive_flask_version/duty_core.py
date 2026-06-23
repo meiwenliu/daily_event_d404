@@ -155,21 +155,6 @@ class DutyCore:
         """config.json 不存在则建默认；缺 secret_key 自动生成。"""
         with self._lock:
             if not os.path.exists(self.config_path):
-                # 先尝试从 config.json.example 复制
-                example_path = os.path.join(self.data_dir, "config.json.example")
-                if os.path.exists(example_path):
-                    try:
-                        import shutil
-                        shutil.copyfile(example_path, self.config_path)
-                        cfg = _read_json(self.config_path, {})
-                        # 如果 example 没有 secret_key 就生成
-                        if not cfg.get("secret_key"):
-                            cfg["secret_key"] = secrets.token_hex(32)
-                            _write_json(self.config_path, cfg)
-                        return
-                    except OSError:
-                        pass
-                # 如果没有 example 就用默认配置
                 cfg = _default_config()
                 cfg["rotation"]["base_monday"] = _today_monday_iso()
                 cfg["secret_key"] = secrets.token_hex(32)

@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# 虚拟环境
+.venv/
+venv/
+
+# 工具/会话缓存
+.omc/
+.claude/
+
+# 系统文件
+Thumbs.db
+.DS_Store
+
+# data/config.json 是核心配置，纳入版本管理（值日表/节假日/模板可随仓库同步）。
+# 但运行时自动备份与登录日志属本地产物，不提交：
+data/backup/
+data/auth.log

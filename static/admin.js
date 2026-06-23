@@ -1,9 +1,5 @@
-/* =========================================================================
-   D404 实验室值日看板 · 管理后台脚本
-   按 body[data-page] 分发到对应页面初始化。
-   ========================================================================= */
+/* D404 值日看板 · 管理后台 + 登录页脚本（v3） */
 "use strict";
-
 var $ = function (id) { return document.getElementById(id); };
 var WEEKDAYS = ["周一", "周二", "周三", "周四", "周五"];
 
@@ -12,293 +8,365 @@ function esc(s) {
     return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
   });
 }
-
-async function api(path, opts) {
-  opts = opts || {};
-  var res = await fetch(path, Object.assign({ headers: { "Content-Type": "application/json" } }, opts));
-  if (!res.ok) throw new Error(path + " -> HTTP " + res.status);
-  return res.json();
-}
+function val(id) { var e = $(id); return e ? e.value : ""; }
+function cb(id) { var e = $(id); return e ? e.checked : false; }
+function todayIso() { var d = new Date(); return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0"); }
+function fmtMD(ds) { var p = ds.split("-"); return p[1] + "-" + p[2]; }
 
 function toast(msg, type) {
-  var area = $("toast");
-  if (!area) { alert(msg); return; }
+  var area = $("toast"); if (!area) { alert(msg); return; }
   var el = document.createElement("div");
   el.className = "toast " + (type === "err" ? "err" : "ok");
-  el.textContent = msg;
-  area.appendChild(el);
+  el.textContent = msg; area.appendChild(el);
   setTimeout(function () { el.classList.add("out"); setTimeout(function () { el.remove(); }, 300); }, 2400);
 }
 
-function copyText(text) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function () { toast("已复制，可粘贴到微信群"); }, function () { fb(text); });
-  } else { fb(text); }
-}
-function fb(text) {
-  var ta = document.createElement("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
-  try { document.execCommand("copy"); toast("已复制"); } catch (e) { toast("复制失败", "err"); }
-  document.body.removeChild(ta);
+async function api(path, opts) {
+  opts = opts || {};
+  var res = await fetch(path, Object.assign({ headers: { "Content-Type": "application/json" }, cache: "no-store" }, opts));
+  var data = null;
+  try { data = await res.json(); } catch (e) {}
+  if (!res.ok) throw new Error((data && (data.error || data.message)) || ("HTTP " + res.status));
+  return data;
 }
 
-/* =========================== 基础设置（首页） =========================== */
-var _cfg = null, _duty = null;
+/* ============================ 登录页 ============================ */
+function initLogin() {
+  var form = $("loginForm");
+  form.addEventListener("submit", async function (e) {
+    e.preventDefault();
+    var pwd = $("pwd").value;
+    var err = $("err"); err.hidden = true;
+    try {
+      await api("/login", { method: "POST", body: JSON.stringify({ password: pwd }) });
+      location.href = "/admin";
+    } catch (ex) {
+      err.textContent = "登录失败：" + ex.message;
+      err.hidden = false;
+    }
+  });
+}
 
-async function initHome() {
-  _cfg = await api("/api/config");
-  _duty = await api("/api/duty");
+/* ============================ 管理后台 ============================ */
+var _cfg = null;
+
+async function initAdmin() {
+  // 标签切换
+  document.querySelectorAll("#adminNav a[data-tab]").forEach(function (a) {
+    a.addEventListener("click", function () {
+      var tab = a.getAttribute("data-tab");
+      document.querySelectorAll("#adminNav a[data-tab]").forEach(function (x) { x.classList.toggle("active", x === a); });
+      document.querySelectorAll(".atab").forEach(function (s) { s.hidden = (s.id !== "tab-" + tab); });
+    });
+  });
+
+  try {
+    _cfg = await api("/api/admin/config");
+  } catch (ex) {
+    if (String(ex.message).indexOf("401") >= 0 || ex.message.indexOf("未登录") >= 0) {
+      location.href = "/login"; return;
+    }
+    toast("加载配置失败：" + ex.message, "err"); return;
+  }
+
+  fillBasic();
+  renderGroups();
+  renderTodayStatus();
+  renderOverrides();
+  renderSkip();
+  fillTemplates();
+  renderBackups();
+  renderDeploy();
+  renderSecurityBanner();
+
+  // 保存按钮（基础/值日/节假日/模板 统一全量保存）
+  document.querySelectorAll("button[data-save]").forEach(function (b) {
+    b.addEventListener("click", saveAll);
+  });
+  $("btnAddGroup").addEventListener("click", addGroup);
+  $("btnSaveToday").addEventListener("click", applyToday);
+  $("btnAddOverride").addEventListener("click", addOverride);
+  $("btnAddSkip").addEventListener("click", addSkip);
+  $("btnPreviewTpl").addEventListener("click", previewTpl);
+  $("btnImportJson").addEventListener("click", importJson);
+  $("btnImportCsv").addEventListener("click", importCsv);
+  $("btnChangePwd").addEventListener("click", changePwd);
+}
+
+function fillBasic() {
   $("labName").value = _cfg.lab_name || "";
   $("chatName").value = _cfg.chat_name || "";
-  $("skipHolidays").checked = !!_cfg.skip_holidays;
-  $("skipCustom").checked = !!_cfg.skip_custom;
-  $("baseMonday").value = _duty.base_monday || "";
-  $("baseGroup").value = _duty.base_group || "";
-  $("orderInput").value = (_duty.order || []).join(",");
+  $("baseMonday").value = (_cfg.rotation || {}).base_monday || "";
+  $("baseGroup").value = (_cfg.rotation || {}).base_group || "";
+  $("orderInput").value = ((_cfg.rotation || {}).order || []).join(",");
+  var st = _cfg.settings || {};
+  $("skipHolidays").checked = !!st.skip_holidays;
+  $("skipCustom").checked = !!st.skip_custom;
+  $("showCountdown").checked = !!st.show_countdown;
+  $("saturdayEnabled").checked = !!st.saturday_enabled;
+  $("weekdayTimes").value = (st.weekday_times || []).map(function (t) { return t.time; }).join(",");
+  $("saturdayTimes").value = (st.saturday_times || []).map(function (t) { return t.time; }).join(",");
+  $("tplWeekday").value = (_cfg.templates || {}).tpl_weekday || "";
+  $("tplSaturday").value = (_cfg.templates || {}).tpl_saturday || "";
+  $("publicMode").checked = !!_cfg.public_mode_enabled;
+  $("publicUrl").value = _cfg.public_url || "";
+}
 
-  $("btnSaveBasic").addEventListener("click", saveBasic);
-  $("btnPreviewDate").addEventListener("click", function () {
-    var d = $("previewDate").value;
-    if (!d) { toast("请先选择日期", "err"); return; }
-    window.open("/?date=" + d, "_blank");
+function parseTimes(text) {
+  return text.split(",").map(function (s) { return s.trim(); }).filter(Boolean)
+    .map(function (t) { return { time: t, enabled: true }; });
+}
+
+function collectAll() {
+  _cfg.lab_name = val("labName").trim();
+  _cfg.chat_name = val("chatName").trim();
+  _cfg.rotation = _cfg.rotation || {};
+  _cfg.rotation.base_monday = val("baseMonday");
+  _cfg.rotation.base_group = parseInt(val("baseGroup"), 10) || 1;
+  _cfg.rotation.order = val("orderInput").split(",").map(function (s) { return parseInt(s.trim(), 10); }).filter(function (n) { return !isNaN(n); });
+  _cfg.settings = _cfg.settings || {};
+  var st = _cfg.settings;
+  st.skip_holidays = cb("skipHolidays");
+  st.skip_custom = cb("skipCustom");
+  st.show_countdown = cb("showCountdown");
+  st.saturday_enabled = cb("saturdayEnabled");
+  st.show_sunday = st.show_sunday || false;
+  st.notify_lead_minutes = st.notify_lead_minutes || 30;
+  st.weekday_times = parseTimes(val("weekdayTimes"));
+  st.saturday_times = parseTimes(val("saturdayTimes"));
+  _cfg.templates = _cfg.templates || {};
+  _cfg.templates.tpl_weekday = val("tplWeekday");
+  _cfg.templates.tpl_saturday = val("tplSaturday");
+  _cfg.groups = collectGroups();
+  _cfg.public_mode_enabled = cb("publicMode");
+  _cfg.public_url = val("publicUrl").trim();
+  // date_overrides / skip_days 已在 _cfg 中由各功能维护
+}
+
+function collectGroups() {
+  var cards = document.querySelectorAll("#groupsContainer .group-card");
+  var groups = [];
+  cards.forEach(function (card) {
+    var num = parseInt(card.getAttribute("data-num"), 10);
+    var name = card.querySelector("input[data-k=name]").value.trim();
+    var leader = card.querySelector("input[data-k=leader]").value.trim();
+    var members = [];
+    card.querySelectorAll("input[data-mem]").forEach(function (inp) { members.push(inp.value.trim()); });
+    groups.push({ id: "g-" + num, number: num, name: name, leader: leader, members: members });
   });
-  document.querySelectorAll("button[data-prev]").forEach(function (b) {
-    b.addEventListener("click", function () { previewCopy(b.getAttribute("data-prev")); });
-  });
-  $("btnExport").addEventListener("click", doExport);
-  refreshDistLink();
-}
-
-async function saveBasic() {
-  _cfg.lab_name = $("labName").value.trim();
-  _cfg.chat_name = $("chatName").value.trim();
-  _cfg.skip_holidays = $("skipHolidays").checked;
-  _cfg.skip_custom = $("skipCustom").checked;
-  _duty.base_monday = $("baseMonday").value;
-  _duty.base_group = parseInt($("baseGroup").value, 10) || 1;
-  _duty.order = $("orderInput").value.split(",").map(function (s) { return parseInt(s.trim(), 10); }).filter(function (n) { return !isNaN(n); });
-  await api("/api/config", { method: "POST", body: JSON.stringify(_cfg) });
-  await api("/api/duty", { method: "POST", body: JSON.stringify(_duty) });
-  toast("基础设置已保存");
-}
-
-async function previewCopy(kind) {
-  var today = $("previewDate").value || new Date().toISOString().slice(0, 10);
-  try {
-    var v = await api("/api/preview?date=" + today);
-    var text = v.copy[kind] || "（无）";
-    $("previewText").textContent = text;
-    copyText(text);
-  } catch (e) { toast("预览失败：" + e.message, "err"); }
-}
-
-async function doExport() {
-  var btn = $("btnExport"); btn.disabled = true; btn.textContent = "生成中…";
-  try {
-    var r = await api("/api/export", { method: "POST", body: "{}" });
-    var box = $("exportResult");
-    box.hidden = false;
-    var lines = r.files.map(function (f) { return "  " + f.path + "  (" + f.size + " B)"; });
-    box.textContent = "生成完成，共 " + r.count + " 个文件：\n" + lines.join("\n") +
-      (r.missing && r.missing.length ? "\n缺失：" + r.missing.join(", ") : "") +
-      "\n\ndist 路径：" + r.dist;
-    toast(r.ok ? "发布文件已生成" : "已生成，但有缺失文件", r.ok ? "ok" : "err");
-    refreshDistLink();
-  } catch (e) {
-    toast("生成失败：" + e.message, "err");
-  } finally {
-    btn.disabled = false; btn.textContent = "生成 / 更新发布文件";
-  }
-}
-
-async function refreshDistLink() {
-  try {
-    var s = await api("/api/dist_status");
-    var link = $("distLink");
-    if (link) link.hidden = !s.exists;
-  } catch (e) {}
-}
-
-/* =========================== 值日人员 =========================== */
-async function initDuty() {
-  _duty = await api("/api/duty");
-  renderGroups();
-  $("btnAddGroup").addEventListener("click", addGroup);
+  return groups;
 }
 
 function renderGroups() {
-  var box = $("groupsContainer");
-  box.innerHTML = "";
-  _duty.groups.forEach(function (g, gi) {
+  var box = $("groupsContainer"); box.innerHTML = "";
+  (_cfg.groups || []).forEach(function (g) {
     var members = (g.members && g.members.length === 5) ? g.members : ["", "", "", "", ""];
     var card = document.createElement("div");
-    card.className = "group-card";
+    card.className = "group-card"; card.setAttribute("data-num", g.number);
     card.innerHTML =
       '<div class="group-card-head">' +
       '<span class="grp-num">第 ' + g.number + ' 组</span>' +
-      '<input type="text" placeholder="组名" value="' + esc(g.name) + '" data-k="name" style="max-width:180px">' +
+      '<input type="text" data-k="name" placeholder="组名" value="' + esc(g.name) + '" style="max-width:180px">' +
       '<label class="field" style="flex-direction:row;align-items:center;gap:6px"><span style="margin:0">负责人</span>' +
-      '<input type="text" value="' + esc(g.leader) + '" data-k="leader" style="max-width:130px"></label>' +
-      '<button class="btn-danger-admin" data-del="' + gi + '">删除该组</button>' +
-      '</div>' +
-      '<div class="member-grid">' +
-      members.map(function (m, mi) {
-        return '<label class="field"><span>' + WEEKDAYS[mi] + '</span><input type="text" value="' + esc(m) + '" data-mem="' + mi + '"></label>';
-      }).join("") + '</div>';
+      '<input type="text" data-k="leader" value="' + esc(g.leader) + '" style="max-width:130px"></label>' +
+      '<button class="btn-danger-admin" data-del="' + g.number + '">删除该组</button></div>' +
+      '<div class="member-grid">' + WEEKDAYS.map(function (dn, mi) {
+        return '<label class="field"><span>' + dn + '</span><input type="text" data-mem="' + mi + '" value="' + esc(members[mi]) + '"></label>';
+      }).join("") + "</div>";
     box.appendChild(card);
   });
-
-  box.querySelectorAll("input[data-k]").forEach(function (inp) {
-    inp.addEventListener("change", function () { var gi = cardIndexOf(inp); _duty.groups[gi][inp.dataset.k] = inp.value.trim(); saveDuty(); });
-  });
-  box.querySelectorAll("input[data-mem]").forEach(function (inp) {
-    inp.addEventListener("change", function () { var gi = cardIndexOf(inp); _duty.groups[gi].members[parseInt(inp.dataset.mem, 10)] = inp.value.trim(); saveDuty(); });
-  });
   box.querySelectorAll("button[data-del]").forEach(function (b) {
     b.addEventListener("click", function () {
-      var gi = parseInt(b.dataset.del, 10);
-      if (!confirm("确定删除「" + _duty.groups[gi].name + "」？")) return;
-      _duty.groups.splice(gi, 1);
-      saveDuty().then(renderGroups);
+      var num = parseInt(b.getAttribute("data-del"), 10);
+      if (!confirm("确定删除第 " + num + " 组？")) return;
+      _cfg.groups = _cfg.groups.filter(function (g) { return g.number !== num; });
+      _cfg.rotation.order = (_cfg.rotation.order || []).filter(function (n) { return n !== num; });
+      renderGroups(); toast("已删除，记得点保存");
     });
   });
 }
-function cardIndexOf(el) {
-  var cards = document.querySelectorAll("#groupsContainer .group-card");
-  for (var i = 0; i < cards.length; i++) if (cards[i].contains(el)) return i;
-  return 0;
-}
-async function saveDuty() { await api("/api/duty", { method: "POST", body: JSON.stringify(_duty) }); }
 function addGroup() {
-  var next = (_duty.groups.reduce(function (m, g) { return Math.max(m, g.number); }, 0)) + 1;
-  _duty.groups.push({ number: next, name: "第" + next + "组", leader: "", members: ["", "", "", "", ""] });
-  _duty.order.push(next);
-  saveDuty().then(function () { renderGroups(); toast("已新增第" + next + "组"); });
+  var nums = (_cfg.groups || []).map(function (g) { return g.number; });
+  var next = nums.length ? Math.max.apply(null, nums) + 1 : 1;
+  _cfg.groups.push({ id: "g-" + next, number: next, name: "第" + next + "组", leader: "", members: ["", "", "", "", ""] });
+  _cfg.rotation = _cfg.rotation || {}; _cfg.rotation.order = _cfg.rotation.order || [];
+  if (_cfg.rotation.order.indexOf(next) < 0) _cfg.rotation.order.push(next);
+  renderGroups(); toast("已新增第 " + next + " 组，记得点保存");
 }
 
-/* =========================== 提醒时间 =========================== */
-async function initReminders() {
-  _cfg = await api("/api/config");
-  renderTimes();
-  $("btnAddWeekday").addEventListener("click", function () { _cfg.weekday_times.push({ time: "10:00", enabled: true }); renderTimes(); });
-  $("btnSaveReminders").addEventListener("click", saveReminders);
+/* ---- 今日状态 ---- */
+function renderTodayStatus() {
+  var today = todayIso();
+  var ov = (_cfg.date_overrides || []).find(function (o) { return o.date === today; });
+  $("todayMode").value = ov ? ov.mode : "auto";
+  $("todayReason").value = ov ? (ov.reason || "") : "";
+  $("todayStatusInfo").innerHTML = ov
+    ? '<span class="badge ' + (ov.mode === "paused" ? "badge-rose" : "badge-green") + '">当前：' + (ov.mode === "paused" ? "手动暂停" : "手动正常值日") + "</span> " + esc(ov.reason || "")
+    : '<span class="badge badge-gray">当前：自动判断（按星期与放假规则）</span>';
 }
-function renderTimeList(boxId, times) {
-  var box = $(boxId);
-  if (!times.length) { box.innerHTML = '<div class="hint">暂无提醒时间</div>'; return; }
-  box.innerHTML = times.map(function (t, i) {
-    return '<div class="time-row">' +
-      '<input type="time" value="' + esc(t.time) + '" data-ti="' + i + '">' +
-      '<label class="sw-row"><input type="checkbox" class="cb" data-en="' + i + '"' + (t.enabled ? " checked" : "") + '><span class="sw"></span><span>启用</span></label>' +
-      '<button class="btn-danger-admin" data-rm="' + i + '">删除</button></div>';
+function applyToday() {
+  var mode = val("todayMode"), reason = val("todayReason").trim();
+  var today = todayIso();
+  _cfg.date_overrides = (_cfg.date_overrides || []).filter(function (o) { return o.date !== today; });
+  if (mode !== "auto") _cfg.date_overrides.push({ id: "today-" + today, date: today, mode: mode, reason: reason });
+  saveAll(function () { renderTodayStatus(); renderOverrides(); });
+}
+
+/* ---- 指定日期覆盖 ---- */
+function renderOverrides() {
+  var box = $("overrideList");
+  var list = (_cfg.date_overrides || []).slice().sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+  if (!list.length) { box.innerHTML = '<div class="hint">暂无日期覆盖</div>'; return; }
+  box.innerHTML = list.map(function (o) {
+    return '<div class="skip-row"><span><b>' + esc(o.date) + '</b> <span class="badge ' + (o.mode === "paused" ? "badge-rose" : "badge-green") + '">' + (o.mode === "paused" ? "暂停" : "正常") + "</span> " + esc(o.reason || "") + "</span>" +
+      '<button class="btn-danger-admin" data-ov-del="' + o.date + '">删除</button></div>';
   }).join("");
-  box.querySelectorAll("input[data-ti]").forEach(function (inp) {
-    inp.addEventListener("change", function () { times[parseInt(inp.dataset.ti, 10)].time = inp.value; });
-  });
-  box.querySelectorAll("input[data-en]").forEach(function (inp) {
-    inp.addEventListener("change", function () { times[parseInt(inp.dataset.en, 10)].enabled = inp.checked; });
-  });
-  box.querySelectorAll("button[data-rm]").forEach(function (b) {
-    b.addEventListener("click", function () { times.splice(parseInt(b.dataset.rm, 10), 1); renderTimes(); });
+  box.querySelectorAll("button[data-ov-del]").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var d = b.getAttribute("data-ov-del");
+      _cfg.date_overrides = _cfg.date_overrides.filter(function (o) { return o.date !== d; });
+      saveAll(function () { renderOverrides(); renderTodayStatus(); });
+    });
   });
 }
-function renderTimes() {
-  renderTimeList("weekdayTimes", _cfg.weekday_times);
-  renderTimeList("saturdayTimes", _cfg.saturday_times);
-  $("saturdayEnabled").checked = !!_cfg.saturday_enabled;
-  $("showSunday").checked = !!_cfg.show_sunday;
-  $("showCountdown").checked = !!_cfg.show_countdown;
-  $("notifyLead").value = _cfg.notify_lead_minutes || 30;
-}
-async function saveReminders() {
-  _cfg.saturday_enabled = $("saturdayEnabled").checked;
-  _cfg.show_sunday = $("showSunday").checked;
-  _cfg.show_countdown = $("showCountdown").checked;
-  _cfg.notify_lead_minutes = parseInt($("notifyLead").value, 10) || 30;
-  await api("/api/config", { method: "POST", body: JSON.stringify(_cfg) });
-  toast("提醒时间已保存");
+function addOverride() {
+  var d = val("ovDate"), mode = val("ovMode"), reason = val("ovReason").trim();
+  if (!d) { toast("请选择日期", "err"); return; }
+  _cfg.date_overrides = (_cfg.date_overrides || []).filter(function (o) { return o.date !== d; });
+  _cfg.date_overrides.push({ id: "ov-" + d, date: d, mode: mode, reason: reason });
+  $("ovDate").value = ""; $("ovReason").value = "";
+  saveAll(function () { renderOverrides(); renderTodayStatus(); });
 }
 
-/* =========================== 节假日 =========================== */
-var _skip = null;
-async function initHolidays() {
-  _cfg = await api("/api/config");
-  _skip = await api("/api/skip");
-  renderSkip();
-  $("btnAddSkip").addEventListener("click", addSkip);
-}
+/* ---- 节假日 ---- */
 function renderSkip() {
   var box = $("skipList");
-  if (!_skip.skip_days || !_skip.skip_days.length) { box.innerHTML = '<div class="hint">暂无停提醒日期</div>'; return; }
-  box.innerHTML = _skip.skip_days.map(function (s) {
-    return '<div class="skip-row">' +
-      '<span><b>' + esc(s.name) + '</b> <span class="badge ' + s.kind + '">' + (s.kind === "holiday" ? "法定节假日" : "课题组放假") + '</span></span>' +
-      '<span class="skip-range">' + esc(s.start) + " → " + esc(s.end) + '</span>' +
-      '<button class="btn-ghost-admin" data-edit="' + s.id + '">编辑</button>' +
-      '<button class="btn-danger-admin" data-del="' + s.id + '">删除</button></div>';
+  var list = _cfg.skip_days || [];
+  if (!list.length) { box.innerHTML = '<div class="hint">暂无节假日/放假</div>'; return; }
+  box.innerHTML = list.map(function (s) {
+    return '<div class="skip-row"><span><b>' + esc(s.name) + '</b> <span class="badge ' + s.kind + '">' + (s.kind === "holiday" ? "法定节假日" : "课题组放假") + "</span></span>" +
+      '<span class="skip-range">' + esc(s.start) + " → " + esc(s.end) + "</span>" +
+      '<button class="btn-danger-admin" data-skip-del="' + s.id + '">删除</button></div>';
   }).join("");
-  box.querySelectorAll("button[data-del]").forEach(function (b) {
+  box.querySelectorAll("button[data-skip-del]").forEach(function (b) {
     b.addEventListener("click", function () {
-      _skip.skip_days = _skip.skip_days.filter(function (s) { return s.id !== b.dataset.del; });
-      saveSkip();
-    });
-  });
-  box.querySelectorAll("button[data-edit]").forEach(function (b) {
-    b.addEventListener("click", function () {
-      var s = _skip.skip_days.find(function (x) { return x.id === b.dataset.edit; });
-      $("newName").value = s.name; $("newKind").value = s.kind;
-      $("newStart").value = s.start; $("newEnd").value = s.end;
-      s._editing = true; $("editHint").hidden = false;
-      toast("已载入，修改后点添加即更新");
+      var id = b.getAttribute("data-skip-del");
+      _cfg.skip_days = _cfg.skip_days.filter(function (s) { return s.id !== id; });
+      saveAll(renderSkip);
     });
   });
 }
-async function addSkip() {
-  var name = $("newName").value.trim(), kind = $("newKind").value;
-  var start = $("newStart").value, end = $("newEnd").value;
+function addSkip() {
+  var name = val("newSkipName").trim(), kind = val("newSkipKind");
+  var start = val("newSkipStart"), end = val("newSkipEnd");
   if (!name || !start || !end) { toast("请填写名称与起止日期", "err"); return; }
   if (start > end) { toast("开始日期不能晚于结束日期", "err"); return; }
-  var editing = _skip.skip_days.find(function (s) { return s._editing; });
-  if (editing) { editing.name = name; editing.kind = kind; editing.start = start; editing.end = end; delete editing._editing; $("editHint").hidden = true; }
-  else { _skip.skip_days.push({ id: "s-" + Date.now(), name: name, kind: kind, start: start, end: end }); }
-  $("newName").value = ""; $("newStart").value = ""; $("newEnd").value = "";
-  await saveSkip();
+  _cfg.skip_days.push({ id: "s-" + Date.now(), name: name, kind: kind, start: start, end: end });
+  $("newSkipName").value = ""; $("newSkipStart").value = ""; $("newSkipEnd").value = "";
+  saveAll(renderSkip);
 }
-async function saveSkip() { await api("/api/skip", { method: "POST", body: JSON.stringify(_skip) }); renderSkip(); toast("已保存"); }
 
-/* =========================== 消息模板 =========================== */
-var _tpl = null;
-async function initTemplates() {
-  _tpl = await api("/api/templates");
-  $("tplWeekday").value = _tpl.tpl_weekday || "";
-  $("tplSaturday").value = _tpl.tpl_saturday || "";
-  $("btnSaveTpl").addEventListener("click", saveTpl);
-  $("btnPreviewTpl").addEventListener("click", previewTpl);
-}
-async function saveTpl() {
-  _tpl.tpl_weekday = $("tplWeekday").value;
-  _tpl.tpl_saturday = $("tplSaturday").value;
-  await api("/api/templates", { method: "POST", body: JSON.stringify(_tpl) });
-  toast("模板已保存");
-}
+/* ---- 模板 ---- */
+function fillTemplates() { /* fillBasic 已填 */ }
 async function previewTpl() {
-  _tpl.tpl_weekday = $("tplWeekday").value;
-  _tpl.tpl_saturday = $("tplSaturday").value;
-  await api("/api/templates", { method: "POST", body: JSON.stringify(_tpl) });
-  var today = new Date().toISOString().slice(0, 10);
-  var v = await api("/api/preview?date=" + today);
-  $("tplPreview").textContent =
-    "──── 周一到周五模板（按今天渲染）────\n" + (v.copy_preview.weekday || "") +
-    "\n\n──── 周六大扫除模板（按本周六渲染）────\n" + (v.copy_preview.saturday || "");
+  collectAll();
+  try {
+    var v = await api("/api/public");
+    $("tplPreview").textContent = "—— 今日值日模板 ——\n" + v.copy.today;
+  } catch (ex) { toast("预览失败：" + ex.message, "err"); }
 }
 
-/* =========================== 入口 =========================== */
-document.addEventListener("DOMContentLoaded", function () {
-  var page = document.body.dataset.page;
+/* ---- 导入导出 ---- */
+async function importJson() {
+  var txt = val("importJsonArea").trim();
+  if (!txt) { toast("请粘贴 JSON", "err"); return; }
+  var obj;
+  try { obj = JSON.parse(txt); } catch (e) { toast("JSON 格式错误：" + e.message, "err"); return; }
   try {
-    if (page === "home") initHome();
-    else if (page === "duty") initDuty();
-    else if (page === "reminders") initReminders();
-    else if (page === "holidays") initHolidays();
-    else if (page === "templates") initTemplates();
-  } catch (e) { toast("页面初始化失败：" + e.message, "err"); }
+    await api("/api/admin/import/json", { method: "POST", body: JSON.stringify(obj) });
+    toast("导入成功"); setTimeout(function () { location.reload(); }, 600);
+  } catch (ex) { toast("导入失败：" + ex.message, "err"); }
+}
+async function importCsv() {
+  var txt = val("importCsvArea");
+  if (!txt.trim()) { toast("请粘贴 CSV", "err"); return; }
+  try {
+    var r = await api("/api/admin/import/csv", { method: "POST", body: JSON.stringify({ text: txt }) });
+    toast("导入成功，共 " + r.groups + " 组"); setTimeout(function () { location.reload(); }, 600);
+  } catch (ex) { toast("导入失败：" + ex.message, "err"); }
+}
+async function renderBackups() {
+  var box = $("backupList");
+  try {
+    var r = await api("/api/admin/backups");
+    var list = r.backups || [];
+    if (!list.length) { box.innerHTML = '<div class="hint">暂无备份</div>'; return; }
+    box.innerHTML = list.map(function (b) {
+      return '<div class="skip-row"><span class="skip-range">' + esc(b.name) + " (" + b.size + " B)</span>" +
+        '<button class="btn-ghost-admin" data-restore="' + esc(b.name) + '">恢复</button></div>';
+    }).join("");
+    box.querySelectorAll("button[data-restore]").forEach(function (bt) {
+      bt.addEventListener("click", async function () {
+        var name = bt.getAttribute("data-restore");
+        if (!confirm("恢复 " + name + "？（当前配置会先自动备份）")) return;
+        try { await api("/api/admin/backup/restore", { method: "POST", body: JSON.stringify({ name: name }) }); toast("已恢复"); setTimeout(function () { location.reload(); }, 600); }
+        catch (ex) { toast("恢复失败：" + ex.message, "err"); }
+      });
+    });
+  } catch (ex) { box.innerHTML = '<div class="hint">加载失败</div>'; }
+}
+
+/* ---- 改密 ---- */
+async function changePwd() {
+  var o = val("oldPwd"), n = val("newPwd");
+  if (n.length < 4) { toast("新密码至少 4 位", "err"); return; }
+  try {
+    await api("/api/admin/password", { method: "POST", body: JSON.stringify({ old: o, new: n }) });
+    toast("密码已修改"); $("oldPwd").value = ""; $("newPwd").value = "";
+  } catch (ex) { toast("修改失败：" + ex.message, "err"); }
+}
+
+/* ---- 部署 / 安全 信息 ---- */
+async function renderDeploy() {
+  var box = $("deployInfo");
+  try {
+    var n = await api("/api/admin/network");
+    box.innerHTML =
+      '<div class="deploy-row"><span>本机访问</span><b>' + esc(n.local) + "</b></div>" +
+      '<div class="deploy-row"><span>局域网访问</span><b>' + esc(n.lan) + '</b> <span class="muted">（手机同 WiFi 打开）</span></div>' +
+      '<div class="deploy-row"><span>公网分享链接</span><b>' + (n.public_url ? esc(n.public_url) : '<span class="muted">未设置（在下方填写）</span>') + "</b></div>" +
+      '<div class="deploy-row"><span>公网模式</span><b>' + (n.public_mode_enabled ? "已开启" : "未开启") + "</b></div>";
+  } catch (e) { box.innerHTML = '<div class="hint">加载失败</div>'; }
+}
+async function renderSecurityBanner() {
+  var warn = $("defaultPwdWarn");
+  var info = $("securityInfo");
+  try {
+    var s = await api("/api/admin/security");
+    if (warn) warn.hidden = !s.is_default_password;
+    if (info) {
+      info.innerHTML =
+        '<div class="deploy-row"><span>默认密码</span><b>' + (s.is_default_password ? '<span style="color:#be123c">是（必须修改）</span>' : "已修改 ✓") + "</b></div>" +
+        '<div class="deploy-row"><span>最近失败登录次数</span><b>' + s.recent_fail_count + "</b></div>" +
+        (s.recent_fails && s.recent_fails.length ? '<div class="hint">最近失败：' + s.recent_fails.map(function (f) { return esc(f.ts + " " + (f.ip || "")); }).join("；") + "</div>" : "");
+    }
+  } catch (e) { /* 忽略 */ }
+}
+
+/* ---- 统一保存 ---- */
+async function saveAll(after) {
+  collectAll();
+  try {
+    await api("/api/admin/config", { method: "POST", body: JSON.stringify(_cfg) });
+    toast("已保存（已自动备份旧配置）");
+    if (after) after();
+  } catch (ex) {
+    toast("保存失败：" + ex.message, "err");
+  }
+}
+
+/* ============================ 入口 ============================ */
+window.addEventListener("DOMContentLoaded", function () {
+  if (window.__loginPage) { initLogin(); return; }
+  initAdmin();
 });

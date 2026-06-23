@@ -296,11 +296,9 @@ def _lan_ip() -> str:
 
 
 def main() -> None:
-    import os
     cfg = core.load_config()
     host = cfg.get("host", "0.0.0.0")
-    # 从环境变量读端口（云平台会自动设置 PORT
-    port = int(os.environ.get("PORT", cfg.get("port", 8848)))
+    port = int(cfg.get("port", 8848))
     lan = _lan_ip()
     print("=" * 60)
     print("  D404 实验室值日看板（在线可保存版）已启动")
@@ -309,9 +307,7 @@ def main() -> None:
     print(f"  管理后台：  http://127.0.0.1:{port}/admin   （默认密码 d404admin）")
     print("  关闭本窗口即停止服务。")
     print("=" * 60)
-    # 仅在本地开发时自动打开浏览器
-    if os.environ.get("RENDER") is None and os.environ.get("RAILWAY") is None:
-        _open_browser_later(f"http://127.0.0.1:{port}/")
+    _open_browser_later(f"http://127.0.0.1:{port}/")
     try:
         app.run(host=host, port=port, debug=False, use_reloader=False, threaded=True)
     except OSError as exc:
