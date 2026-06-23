@@ -46,8 +46,8 @@
   "is_default_password": true,
   "lab_name": "D404 实验室",
   "port": 8848,
-  "public_mode_enabled": false,
-  "public_url": "",
+  "public_mode_enabled": true,
+  "public_url": "https://d404-duty.onrender.com",
   "rotation": {
     "base_group": 2,
     "base_monday": "2026-06-15",
