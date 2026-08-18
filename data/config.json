@@ -4,8 +4,6 @@
   "groups": [
     {
       "id": "g-1",
-      "number": 1,
-      "name": "第1组",
       "leader": "刘美雯",
       "members": [
         "刘美雯",
@@ -13,12 +11,12 @@
         "李知桐",
         "杨纳宇",
         "张怀正"
-      ]
+      ],
+      "name": "第1组",
+      "number": 1
     },
     {
       "id": "g-2",
-      "number": 2,
-      "name": "第2组",
       "leader": "王子月",
       "members": [
         "王子月",
@@ -26,12 +24,12 @@
         "李晨",
         "贾磊",
         "李珍珍"
-      ]
+      ],
+      "name": "第2组",
+      "number": 2
     },
     {
       "id": "g-3",
-      "number": 3,
-      "name": "第3组",
       "leader": "尚与新",
       "members": [
         "尚与新",
@@ -39,7 +37,9 @@
         "于功文",
         "渠迪",
         "赵楠"
-      ]
+      ],
+      "name": "第3组",
+      "number": 3
     }
   ],
   "host": "0.0.0.0",
@@ -47,7 +47,7 @@
   "lab_name": "D404 实验室",
   "port": 8848,
   "public_mode_enabled": true,
-  "public_url": "https://471173ce.r8.vip.cpolar.cn",
+  "public_url": "https://d404-duty.onrender.com",
   "rotation": {
     "base_group": 2,
     "base_monday": "2026-06-15",
@@ -62,8 +62,8 @@
     "saturday_enabled": true,
     "saturday_times": [
       {
-        "time": "10:00",
-        "enabled": true
+        "enabled": true,
+        "time": "10:00"
       }
     ],
     "show_countdown": true,
@@ -72,8 +72,8 @@
     "skip_holidays": true,
     "weekday_times": [
       {
-        "time": "10:00",
-        "enabled": true
+        "enabled": true,
+        "time": "10:00"
       }
     ]
   },
