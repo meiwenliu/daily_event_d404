@@ -42,7 +42,28 @@ D404 实验室值日看板系统 - 在线可保存版
 
 ---
 
-### 第3步：初始化配置
+### 第3步：配置免费数据库（重要！让线上修改永久保存）
+
+Render 免费版的文件系统是临时的：服务 15 分钟没人访问就休眠，重启后
+**后台改的密码、值日表全部丢失**（退回部署时的默认配置）。
+解决办法：接入 Neon 免费 PostgreSQL 数据库，配置改存数据库，重启也不丢。
+
+1. 访问 https://neon.com ，用 GitHub 账号注册（免费，无需信用卡）
+2. 登录后点击 "Create project"（区域选 Singapore 离国内最近），随便起名如 `d404-duty`
+3. 创建完成后，在连接信息里复制 **Connection string**，
+   形如 `postgresql://user:password@ep-xxx.aws-region.neon.tech/neondb?sslmode=require`
+4. 回到 Render 控制台：你的服务 → 左侧 "Environment" → "Add Environment Variable"：
+   - **Key**: `DATABASE_URL`
+   - **Value**: 刚才复制的连接串
+5. 保存后 Render 会自动重新部署
+6. 验证：登录后台改一次密码 → Render 控制台手动 "Restart" 服务 → 再登录，密码仍是新的 ✅
+
+> 连接串包含数据库密码，只填在 Render 环境变量里，**不要**写进代码或提交到 GitHub。
+> 不配置 DATABASE_URL 也能跑，但修改会随服务重启丢失（仅本地模式不需要配置）。
+
+---
+
+### 第4步：初始化配置
 1. 访问你的 Render 链接
 2. 登录管理后台：`https://你的链接/admin`
 3. 默认密码：`d404admin`
@@ -63,15 +84,15 @@ D404 实验室值日看板系统 - 在线可保存版
 
 ## 💡 云部署注意事项
 
-### ⚠️ 数据持久化
-- 免费平台（Render/Railway 重启后，data/config.json 会重置为默认值
-- 解决办法：
-  1. 配置好后，在后台导出 config.json，保存到本地
-  2. 万一重置了就重新导入一下
+### ✅ 数据持久化
+- **已支持**：配置 DATABASE_URL（见第3步）后，密码、值日表、备份、登录日志
+  全部存 Neon 数据库，Render 重启 / 休眠唤醒 / 重新部署都不会丢
+- **未配置 DATABASE_URL 时**：Render/Railway 重启后 data/config.json 会重置，
+  后台修改仅当次有效（本地运行不受影响）
 
 ### 🔒 安全
 - 部署后立即修改默认密码！
-- data/config.json 不会上传到 GitHub（已在 .gitignore
+- data/config.json 含密码与密钥，已在 .gitignore 且已退出 git 跟踪，不会上传 GitHub
 
 ---
 

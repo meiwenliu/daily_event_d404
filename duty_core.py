@@ -25,6 +25,8 @@ import threading
 from datetime import date, datetime, timedelta
 from typing import Any, Dict, List, Optional, Tuple
 
+import db_storage
+
 logger = logging.getLogger(__name__)
 
 WEEKDAY_CN: List[str] = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
@@ -147,13 +149,31 @@ class DutyCore:
         self.backup_dir = os.path.join(self.data_dir, "backup")
         os.makedirs(self.backup_dir, exist_ok=True)
         self.config_path = os.path.join(self.data_dir, "config.json")
+        # 云端模式：设置了 DATABASE_URL（如 Render 部署）时改用数据库持久化，
+        # 避免 Render 免费版临时文件系统在重启后丢失全部修改。
+        self.use_db = db_storage.enabled()
         self._lock = threading.RLock()
         self.ensure_defaults()
 
     # ---- 初始化 / 升级旧配置 ----
     def ensure_defaults(self) -> None:
-        """config.json 不存在则建默认；缺 secret_key 自动生成。"""
+        """数据库模式：表为空则用本地 config.json / example / 默认值作种子。
+        文件模式：config.json 不存在则建默认；缺 secret_key 自动生成。"""
         with self._lock:
+            if self.use_db:
+                try:
+                    if db_storage.get_config() is None:
+                        seed = _read_json(self.config_path, None)
+                        if seed is None:
+                            seed = _read_json(
+                                os.path.join(self.data_dir, "config.json.example"), None)
+                        if seed is None:
+                            seed = _default_config()
+                        db_storage.set_config(seed)
+                        logger.info("云端数据库为空，已写入初始配置")
+                except Exception:
+                    logger.exception("云端数据库初始化失败，本次运行的修改不会持久化")
+                return
             if not os.path.exists(self.config_path):
                 # 先尝试从 config.json.example 复制
                 example_path = os.path.join(self.data_dir, "config.json.example")
@@ -197,14 +217,28 @@ class DutyCore:
     # ---- 读写 ----
     def load_config(self) -> Dict[str, Any]:
         with self._lock:
+            if self.use_db:
+                try:
+                    cfg = db_storage.get_config()
+                except Exception:
+                    logger.exception("从数据库读取配置失败，使用默认配置")
+                    cfg = None
+                if cfg is None:
+                    cfg = _default_config()
+                self._migrate(cfg)
+                return cfg
             cfg = _read_json(self.config_path, _default_config())
             self._migrate(cfg)
             return cfg
 
     def save_config(self, cfg: Dict[str, Any], backup: bool = True) -> None:
-        """保存前备份旧 config.json 到 data/backup，再原子写。"""
+        """数据库模式直接写库（备份在同事务内完成）；
+        文件模式：保存前备份旧 config.json 到 data/backup，再原子写。"""
         with self._lock:
             self._migrate(cfg)
+            if self.use_db:
+                db_storage.set_config(cfg, backup=backup, keep_backups=MAX_BACKUPS)
+                return
             if backup and os.path.exists(self.config_path):
                 self._backup()
             _write_json(self.config_path, cfg)
@@ -226,6 +260,12 @@ class DutyCore:
             logger.warning("备份失败（不影响保存）：%s", exc)
 
     def list_backups(self) -> List[Dict[str, Any]]:
+        if self.use_db:
+            try:
+                return db_storage.list_backups()
+            except Exception:
+                logger.exception("读取云端备份列表失败")
+                return []
         if not os.path.isdir(self.backup_dir):
             return []
         out = []
@@ -235,8 +275,29 @@ class DutyCore:
                 out.append({"name": f, "size": os.path.getsize(p)})
         return out
 
+    def read_backup(self, name: str) -> Optional[Dict[str, Any]]:
+        """按名称读备份内容；不存在或名称非法返回 None。"""
+        if not name.startswith("config_") or not name.endswith(".json"):
+            return None
+        if self.use_db:
+            try:
+                return db_storage.read_backup(name)
+            except Exception:
+                logger.exception("读取云端备份失败：%s", name)
+                return None
+        path = os.path.join(self.backup_dir, name)
+        if not os.path.isfile(path):
+            return None
+        return _read_json(path, None)
+
     # ---- 登录日志（公网暴露后用于排查暴力破解）----
     def log_auth(self, success: bool, ip: str = "", reason: str = "") -> None:
+        if self.use_db:
+            try:
+                db_storage.append_auth(success, ip, reason)
+            except Exception:
+                logger.warning("写入云端登录日志失败")
+            return
         path = os.path.join(self.data_dir, "auth.log")
         try:
             with open(path, "a", encoding="utf-8") as f:
@@ -248,6 +309,12 @@ class DutyCore:
             logger.warning("写入登录日志失败")
 
     def read_auth_log(self, limit: int = 50) -> List[Dict[str, Any]]:
+        if self.use_db:
+            try:
+                return db_storage.recent_auth(limit)
+            except Exception:
+                logger.exception("读取云端登录日志失败")
+                return []
         path = os.path.join(self.data_dir, "auth.log")
         if not os.path.exists(path):
             return []

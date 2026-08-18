@@ -42,7 +42,21 @@
 - [ ] 设置电脑电源计划为"从不"休眠/睡眠
 - [ ] 重启电脑测试是否自动启动
 
-## 五、日常维护
+## 五、云部署数据持久化（Render + Neon，必做）
+
+> Render 免费版文件系统是临时的：服务休眠重启或重新部署后，
+> 后台修改的密码 / 值日表会全部丢失。接入 Neon 免费数据库后永久保存。
+
+- [ ] 注册 https://neon.com （GitHub 登录，免费）
+- [ ] Create project（区域选 Singapore），复制 Connection string
+- [ ] Render 控制台 → 服务 → Environment → 添加变量 `DATABASE_URL` = 连接串
+- [ ] 保存后等待自动重新部署完成
+- [ ] 登录后台修改一次密码
+- [ ] Render 控制台手动 Restart 服务
+- [ ] 重新打开网址，确认新密码仍能登录（= 持久化生效）
+- [ ] 连接串不要写进代码 / 提交 GitHub（只放 Render 环境变量）
+
+## 六、日常维护
 
 - [ ] 定期备份 `data/config.json`
 - [ ] 定期查看 `data/auth.log` 检查登录安全

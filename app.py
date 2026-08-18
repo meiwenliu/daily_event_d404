@@ -225,14 +225,11 @@ def list_backups():
 @app.route("/api/admin/backup/restore", methods=["POST"])
 @login_required_api
 def restore_backup():
-    from duty_core import _read_json
-    import os
     body = request.get_json(silent=True) or {}
     name = str(body.get("name", ""))
-    path = os.path.join(core.backup_dir, name)
-    if not name.startswith("config_") or not os.path.isfile(path):
+    cfg = core.read_backup(name) if name else None
+    if cfg is None:
         return jsonify({"ok": False, "error": "备份不存在"}), 404
-    cfg = _read_json(path, {})
     ok, err = core.validate_config(cfg)
     if not ok:
         return jsonify({"ok": False, "error": f"备份无效：{err}"}), 400

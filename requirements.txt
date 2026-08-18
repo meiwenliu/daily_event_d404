@@ -1,3 +1,5 @@
 # D404 实验室值日看板 · 依赖
 # 本版本不含任何微信机器人/wxauto 依赖，仅需 Flask 做本地管理器与预览。
+# psycopg：云部署设置 DATABASE_URL 后用于数据库持久化，本地文件模式可不装。
 Flask>=2.3
+psycopg[binary]>=3.1
