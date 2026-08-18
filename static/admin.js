@@ -79,9 +79,9 @@ async function initAdmin() {
   renderDeploy();
   renderSecurityBanner();
 
-  // 保存按钮（基础/值日/节假日/模板 统一全量保存）
+  // 保存按钮（基础/值日/节假日/模板 统一全量保存）；包一层避免把事件对象当 after 回调传入
   document.querySelectorAll("button[data-save]").forEach(function (b) {
-    b.addEventListener("click", saveAll);
+    b.addEventListener("click", function () { saveAll(); });
   });
   $("btnAddGroup").addEventListener("click", addGroup);
   $("btnSaveToday").addEventListener("click", applyToday);
@@ -359,7 +359,7 @@ async function saveAll(after) {
   try {
     await api("/api/admin/config", { method: "POST", body: JSON.stringify(_cfg) });
     toast("已保存（已自动备份旧配置）");
-    if (after) after();
+    if (typeof after === "function") after();
   } catch (ex) {
     toast("保存失败：" + ex.message, "err");
   }
